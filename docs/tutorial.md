@@ -97,43 +97,9 @@ offset = -200;
 nGLM.addCovariateTiming(trial, 'saccade', 'saccade', [], bs, offset);
 ```
 
+<i>Add note about basis normalize</i>
 
 
-
-For a timing variable, the following syntax adds a **delta function** at the time of the event:
-```matlab
-dspec = buildGLM.addCovariateTiming(dspec, 'fpon', 'fpon', 'Fixation On');
-```
-However, this is seldom what you want. You probably want to have temporal basis to represent delayed effects of the covariate to the response variable.
-Let's make a set of 8 boxcar basis functions to cover 300 ms evenly:
-```matlab
-bs = basisFactory.makeSmoothTemporalBasis('boxcar', 300, 8, expt.binfun);
-```
-and use this to represent the effect of timing event instead:
-```matlab
-dspec = buildGLM.addCovariateTiming(dspec, 'fpon', 'fpon', 'Fixation On', bs);
-```
-
-If you want to use autoregressive point process modeling (often known as GLM in neuroscience) by adding the spike history filter, you can do the following:
-```matlab
-dspec = buildGLM.addCovariateSpiketrain(dspec, 'hist', 'sptrain', 'History filter');
-```
-This adds spike history filters with default history basis functions.
-You can do the same to add the coupling filters from other neurons (causal only by default):
-```matlab
-dspec = buildGLM.addCovariateSpiketrain(dspec, 'coupling', 'sptrain2', 'Coupling from neuron 2');
-```
-
-You can add continuous covariates with or without basis functions as well:
-```matlab
-dspec = buildGLM.addCovariateRaw(dspec, 'eyepos', 'Eye position effect', bs);
-```
-
-If you have two timing variables that represent a duration, and would like to represent it as a boxcar:
-```matlab
-%% Stimulus starts at `dotson` and ends at `dotsoff`
-dspec = buildGLM.addCovariateBoxcar(dspec, 'dots', 'dotson', 'dotsoff', 'Motion dots stim');
-```
 
 ## More on temporal basis functions
 The `+basisFactory` package provides functions that generate basis function structures.
