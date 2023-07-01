@@ -98,16 +98,7 @@ nGLM.addCovariateTiming(trial, 'saccade', 'saccade', [], bs, offset);
 ```
 
 
-# Forming your feature space
-Once you have your data loaded as an experiment object, you are now ready to specify how your experimental variables will be represented, and hence how your design matrix will be formed.
 
-## Design specification
-We start by creating a **design specification object**.
-```matlab
-dspec = buildGLM.initDesignSpec(expt);
-```
-You can have multiple such object per experiment to analyze your experiments in different ways and compare models.
-The design specification object `dspec` contains specification of how each covariate for the analysis is defined, and the information necessary for temporal embedding and/or nonlinear transformation.
 
 For a timing variable, the following syntax adds a **delta function** at the time of the event:
 ```matlab
@@ -153,21 +144,16 @@ bs = basisFactory.makeSmoothTemporalBasis('raised cosine', 200, 10, expt.binfun)
 The raised cosine functions are spaced such that they can represent linear functions as well as smoothly varying functions.
 
 ## Building the design matrix
-The ultimate output is the design matrix:
+To obtain the design matrix, we need to run the compile function:
 ```matlab
-dm = buildGLM.compileSparseDesignMatrix(dspec, trialIndices);
+nGLM.compileDesignMatrix(trial, trialIndices);
 ```
-where `trialIndices` are the trials to include in making the design matrix. This function is memory intensive, and could take a few seconds to complete.
+where `trialIndices` are the trials to include in making the design matrix. This function is memory intensive, and could take a few seconds to complete. Once it does complete, the neuroGLM object will have a `dm` attribute containing the actual design matrix as `nGLM.dm.X`
 
-`dm` is a structure that contains the actual design matrix as `dm.X`. You can visualize this matrix using **what**?
-
-If your design matrix is not very sparse (less than 10% sparse, for example), it's better to conver the design matrix to a full (dense) matrix for speed.
+If your design matrix is not very sparse (less than 10% sparse, for example), it's better to convert the design matrix to a full (dense) matrix for speed.
 ```matlab
 dm.X = full(dm.X);
 ```
-
-# Advanced feature engineering
-*Coming soon!*
 
 # Regression analysis
 Once you have designed your features, and obtained the design matrix, it's finally time to do some analysis!
@@ -175,33 +161,28 @@ Once you have designed your features, and obtained the design matrix, it's final
 ## Get the dependent variable
 You need to obtain the response variable of the same length as the number of rows in the design matrix to do regression. For **point process** regression, where we want to predict the observed spike train from covariates, this would be a finely binned spike train concatenated over the trials of interest:
 ```matlab
-%% Get the spike trains back to regress against
-y = buildGLM.getBinnedSpikeTrain(expt, 'sptrain', dm.trialIndices);
+y = nGLM.getBinnedSpikeTrain(trial, 'sptrain', nGLM.dm.trialIndices);
 ```
-
-For predicting some continuous observation, such as predicting the LFP, you can do:
-```matlab
-y = buildGLM.getResponseVariable(expt, 'LFP', dm.trialIndices);
-```
-Make sure your `y` is a column vector; `getResponseVariable` returns a matrix if the experimental variable is more than 1 dimension.
 
 ## Doing the actual regression
-You can do whatever you want to do the regression.
-Simple least squares can be done via:
-```matlab
-w = dm.X' * dm.X \ dm.X' * y;
-```
 
-Or you can use the `glmfit` in MATLAB statistics toolbox to do the Poisson regression.
+There are multiple ways to do the regression (least-squares, glmfit etc.) but the tutorial will use the fminunc function to optimize maximum likelihood:
 
 ```matlab
-%% Maximum likelihood estimation using glmfit
-[w, dev, stats] = glmfit(dm.X, y, 'poisson', 'link', 'log');
+fnlin = @expfun; % inverse link function (a.k.a. nonlinearity)
+lfunc = @(w)neglogli_poiss(w, nGLM.dm.X, y, fnlin, 1); % cost/loss function
+
+opts = optimoptions(@fminunc, 'Algorithm', 'trust-region', ...
+    'GradObj', 'on', 'Hessian','on');
+
+[wml, nlogli, exitflag, ostruct, grad, hessian] = fminunc(lfunc, wInit, opts);
+wvar = diag(inv(hessian));
 ```
 
 # Post regression weight reconstruction
 Result of regression is a weight vector (and sometimes additional associated statistics in a vector or matrix) in the feature space. Hence, the weight vector is as long as the number of columns in the design matrix. In order to obtain meaningful temporal weights back corresponding to each covariate, use
 ```matlab
-ws = buildGLM.combineWeights(dm, w);
+ws = nGLM.combineWeights(wml);
+wvar = nGLM.combineWeights(wvar);
 ```
 It returns a structure that contains a time axis `ws.(covLabel).tr` and data `ws.(covLabel).data` for each `covLabel` in the design specification structure.
