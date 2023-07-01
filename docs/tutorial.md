@@ -25,7 +25,7 @@ The spike timings are relative to the beginning of the trial.
 
 A typical trial based experiment may have a cue that indicates the beginning of a trial, cues that indicate waiting period, or presentation of a target at random times.
 These covariates are best represented as events.
-However, if two or more timings are perfectly correlated, it would be sufficient to include just one (see [Experiment Design](exptdesign.md) for more information).
+However, if two or more timings are perfectly correlated, it would be sufficient to include just one.
 Note that many behaviors are also recorded as timing: reaction time, button press time, etc.
 
 ### Continuous
