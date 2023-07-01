@@ -164,7 +164,7 @@ classdef neuroGLM < handle
             if nargin >= 6
                 if isa(basisObj, 'Basis')
                     obj.covar(newIdx).basis = basisObj;
-                    obj.covar(newIdx).edim  = basisObj.edim * sdim;
+                    obj.covar(newIdx).edim = basisObj.edim * sdim;
                 else
                     error('Basis structure should be a basisObject');
                 end
@@ -237,8 +237,8 @@ classdef neuroGLM < handle
             if nargin < 3; desc = covLabel; end
             
             % assert(ischar(desc), 'Description must be a string');
-            stimHandle=str2func(sprintf('@(trial) trial.%s(1:%d:end)', covLabel, obj.binSize));
-%             stimHandle=basisFactory.rawStim(covLabel);
+            % stimHandle=str2func(sprintf('@(trial) trial.%s(1:%d:end)', covLabel, obj.binSize));
+            stimHandle=basisFactory.rawStim(covLabel);
             obj.addCovariate(trial, covLabel, desc, stimHandle, varargin{:});
             
         end
@@ -460,12 +460,16 @@ classdef neuroGLM < handle
                     stim = obj.covar(kCov).stim(trial(kTrial)); % either dense or sparse
                     stim = full(stim);
                     
+                    % try
                     if ~isempty(obj.covar(kCov).basis)
                         X(ndx, sidx) = obj.covar(kCov).basis.convolve(stim, obj.covar(kCov).offset);
 %                         X(ndx, sidx) = basisFactory.convBasis(stim, obj.covar(kCov).basis, obj.covar(kCov).offset);
                     else
                         X(ndx, sidx) = stim;
                     end
+                    % catch err
+                    %     keyboard
+                    % end
                 end
             end
             
@@ -657,7 +661,7 @@ classdef neuroGLM < handle
             S.covar=d.covar;
             S.idxmap=d.idxmap;
             S.dm=d.dm;
-            S.edim=d.edim;
+            S.edim = d.edim;
             S.binfun=d.binfun;
             S.binSize=d.binSize;
             S.param=d.param;
