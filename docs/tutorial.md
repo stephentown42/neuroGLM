@@ -40,76 +40,63 @@ Each trial can have a single value associated with it.
 In many cases these are trial specific parameters such as strength of the stimulus, type of cue, or the behavioral category.
 These values can be used to build a feature space, or  to include specific feature in trials only when certain conditions are met.
 
-## Registering variables to the experiment
 
-Each experimental variable must be registered before the data are loaded.
-First, create an experiment object using `initExperiment`:
+## Preparing the trial data structure
+
+Experimental data needs to be organized into a structure ('trial') where you can need to add each of your experimental variables you have registered for the experiment as fields. Below are examples with randomly generated dummy data (see [tutorial_exampleData.m](../help/tutorial_exampleData.m)).
+
 ```matlab
-expt = buildGLM.initExperiment(unitOfTime, binSize, uniqueID, expParam);
+trial = struct();
+trial(nTrials).duration = 0; % preallocate
+
+lambda = 0.1; % firing rate per bin
+
+for kTrial = 1:nTrials
+    duration = 150 + ceil(rand * 200);
+    trial(kTrial).duration = duration;
+    trial(kTrial).LFP = cumsum(randn(duration, 1));
+    trial(kTrial).eyepos = cumsum(randn(duration, 2));
+    trial(kTrial).dotson = ceil(rand * (duration - 100));
+    trial(kTrial).dotsoff = trial(kTrial).dotson + ceil(rand * 10);
+    trial(kTrial).saccade = 100 + ceil(rand * (duration - 100));
+    trial(kTrial).coh = sign(rand - 0.5) * 2^ceil(rand*8);
+    trial(kTrial).choice = round(rand);
+    trial(kTrial).sptrain = sort(rand(poissrnd(lambda * 0.9 * duration), 1) * duration);
+    trial(kTrial).sptrain2 = sort(rand(poissrnd(0.1 * lambda * duration), 1) * duration);
+
+    trial(kTrial).sptrain = sort([trial(kTrial).sptrain; trial(kTrial).sptrain2 + 2]);
+    trial(kTrial).sptrain(trial(kTrial).sptrain > trial(kTrial).duration) = [];
+
+    trial(kTrial).meta = rand;
+end
+```
+
+## The neuroGLM class
+
+In the revisions to the repository, a dedicated neuroGLM class has been created by jcbyts to combine the definition of experimental objects, loading of trial data and specification of experimental design.
+
+First, create an instance of the `neuroGLM` class:
+```matlab
+nGLM = neuroGLM(unitOfTime, binSize, rawData.param);
 ```
 where `unitOfTime` is a string for the time unit that's going to be used consistently throughout (e.g., 's' or 'ms'), `binSize` is the duration of the time bin to discretize the timings.
-`uniqueID` is a string to uniquely identify the experiment among other experiments (mostly for the organizational purpose) and automatically generated if omitted using `[]`.
-`expParam` can be anything that you want to associate with the experiment structure for easy access later, since it will be carried around throughout the code.
+`param` can be anything that you want to associate with the experiment structure for easy access later, since it will be carried around throughout the code.
 
-Then, each experimental variable is registered by indicating the type, label, and user friendly name of the variable.
-```matlab
-expt = buildGLM.registerContinuous(expt, 'LFP', 'Local Field Potential', 1); % continuous obsevation over time
-expt = buildGLM.registerContinuous(expt, 'eyepos', 'Eye Position', 2); % 2 dimensional observation
-expt = buildGLM.registerTiming(expt, 'dotson', 'Motion Dots Onset'); % events that happen 0 or more times per trial (sparse)
-expt = buildGLM.registerTiming(expt, 'saccade', 'Monkey's Saccade Timing');
-expt = buildGLM.registerSpikeTrain(expt, 'sptrain', 'Our Neuron'); % Spike train!!!
-expt = buildGLM.registerSpikeTrain(expt, 'sptrain2', 'Neighbor Neuron');
-expt = buildGLM.registerValue(expt, 'coh', 'Dots Coherence'); % information on the trial, but not associated with time
-expt = buildGLM.registerValue(expt, 'choice', 'Direction of Monkey's Choice');
-```
-
-Note that one can omit the prefix `buildGLM.` by importing the name space once via
-```matlab
-import buildGLM.*
-```
-
-## Loading the data for each trial
-
-For each trial, we load each of the possible covariate into the experiment structure.
-
-For each trial, we make a temporary object `trial` to load the data:
-```matlab
-trial = buildGLM.newTrial(expt, duration);
-```
-where `duration` is the length of the current trial in `unitOfTime`.
-
-`trial` is a structure where you can need to add each of your experimental variables you have registered for the experiment as fields. Below are examples with randomly generated dummy data.
+Next add covariates associated with each experimental variable. We'll start here with the spike trains, because the basis functions for these variables are automatically defined. To add to the model, we therefore just pass the trial structure (`trial`), the type, label, and user friendly name of the variable. Note that the label must match the name of the field in the trial structure that you want to pass (e.g. `sptrain`):
 
 ```matlab
-trial.dotson = rand() * duration; % timing variable
+nGLM.addCovariateSpiketrain(trial, 'hist', 'sptrain', 'History Filter')
+nGLM.addCovariateSpiketrain(trial, 'coupling', 'sptrain2', 'Coupling from neuron 2')
 ```
+
+For other variables, we need to define the basis functions to fit using an instance of the `Basis` class:
 
 ```matlab
-st = sort(rand(poissrnd(0.1 * duration), 1) * duration); % homogeneous Poisson process
-trial.sptrain = st; % spike train variable
+bs = basisFactory.makeSmoothTemporalBasis('boxcar', 300, 8, nGLM.binfun);
+offset = -200;
+nGLM.addCovariateTiming(trial, 'saccade', 'saccade', [], bs, offset);
 ```
 
-```matlab
-trial.choice = round(rand); % value variable
-```
-
-```matlab
-T = expt.binfun(trial.duration); % number of bins for this trial
-trial.eyepos = randn(T, 1); % continuous variable
-```
-
-Finally, we add the trial object to the experiment object with an associated trial index `kTrial`:
-```matlab
-expt = buildGLM.addTrial(expt, trial, kTrial);
-```
-
-Repeat this for all your trials, and your are done loading your data. See `tutorial*.m` for examples.
-
-Once you are comfortable with the desired data structure, which is just a structure array of the trial objects, you can avoid calling the `newTrial` and `addTrial` functions, and directly plug-in your data into the structure via (see `tutorial_exampleData.m`):
-
-```matlab
-expt.trial = dataInTrialStruct; % only if you know what you are doing
-```
 
 # Forming your feature space
 Once you have your data loaded as an experiment object, you are now ready to specify how your experimental variables will be represented, and hence how your design matrix will be formed.
