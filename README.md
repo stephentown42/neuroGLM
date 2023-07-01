@@ -25,7 +25,7 @@ Downloading the repository
 
 Example Script
 -
-Open ``tutorial.m`` to see it in action using a simulated dataset
+Open [tutorial.m](./help/tutorial.m) to see it in action using a simulated dataset
 
 
 Simple Overview
