@@ -29,20 +29,12 @@ if ~isfield(dspec.model, 'regressionMode')
     dspec.model.regressionMode='ML';
 end
 
-if ~exist('ndx', 'var') || isempty(ndx)
-    ndx = 1:numel(Y);
-end
-
-if ~exist('dt', 'var')
-    dt = 1;
-end
-
-if ~exist('rho', 'var')
-    rho=.2;
-end
+if ~exist('ndx', 'var') || isempty(ndx),  ndx = 1:numel(Y); end
+if ~exist('dt', 'var'), dt = 1; end
+if ~exist('rho', 'var'), rho=.2; end
 
 if isfield(dspec.model, 'optimOpts') && isa(dspec.model.optimOpts, optim.options.Fminunc)
-    optimOpts=dspec.model.optimOpts;
+    optimOpts = dspec.model.optimOpts;
 else
     optimOpts = optimoptions(@fminunc, 'Display', 'iter', 'Algorithm','trust-region',...
         'GradObj','on','Hessian','on');

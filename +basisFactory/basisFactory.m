@@ -1,7 +1,18 @@
 function bs = basisFactory(basisName, binfun, duration)
+% function bs = basisFactory(basisName, binfun, duration)
+%
 % make basis functions
 % bs = basisFactory(basisName, binfun, duration)
-% Possibe Names
+% Possibe Names:
+%   spike
+%   MTLIPcoupling 
+%   MTcoupling 
+%   LIPcoupling 
+%   LIPpulse 
+%   MTpulse 
+%   MTmotion 
+%   LIPmotion
+
 % 
 % nonlinearly scaled raised-cosine basis functions extra ones for refractory 
 % bs = makeSpikeBasis(nBasis, binSize, rnge, stretch, nDelta)
@@ -13,8 +24,9 @@ function bs = basisFactory(basisName, binfun, duration)
 % nDelta
 
 switch basisName
+
     case {'history', 'spike'}
-        if ~exist('duration', 'var'), duration=100;end
+        if ~exist('duration', 'var'), duration=100; end
         bs=basisFactory.makeSmoothTemporalBasis('nonlinearly scaled cosine', duration, 8, binfun, 2);
         nDelta=1;
         bs.tr = [bs.tr(:,1:nDelta) bs.tr];

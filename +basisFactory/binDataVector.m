@@ -25,9 +25,10 @@ function [binnedData, binMat] = binDataVector(dataVector, binSize)
 % binnedData = binnedData(:);
 % nd=numel(dataVector);
 % nBins=ceil(nd/binSize);
-X=filter(ones(binSize,1)/binSize, 1, full(dataVector));
-binnedData=X(1:binSize:end);
+X = filter(ones(binSize,1)/binSize, 1, full(dataVector));
+binnedData = X(1:binSize:end);
+
 if nargout==2
-    nB=numel(dataVector);
-    binMat=filter(ones(binSize,1), 1, full(sparse(1:binSize:nB, 1:ceil(nB/binSize), 1, nB, ceil(nB/binSize))));
+    nB = numel(dataVector);
+    binMat = filter(ones(binSize,1), 1, full(sparse(1:binSize:nB, 1:ceil(nB/binSize), 1, nB, ceil(nB/binSize))));
 end

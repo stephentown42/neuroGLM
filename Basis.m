@@ -93,6 +93,18 @@ classdef Basis < handle
             S.orthogonalized=c.orthogonalized;
         end
         
+        function add_refractory_basis(obj, nDelta)
+        % function add_refractory_basis(obj, nDelta)
+        %
+        % Add a basis function of equal length as existing bases, but with
+        % a single value (1) to capture the refractory period
+
+            if nargin < 2, nDelta = 1; end
+
+            obj.tr = [obj.tr(:,1:nDelta) obj.tr];
+            obj.B = [[eye(nDelta); zeros(size(obj.B,1)-nDelta,nDelta)] obj.B];
+            obj.edim = obj.edim + nDelta;
+        end
         
     end
     

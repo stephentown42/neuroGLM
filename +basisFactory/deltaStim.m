@@ -1,5 +1,15 @@
 function stim = deltaStim(bt, nT, v)
+%function stim = deltaStim(bt, nT, v)
+%
 % Returns a sparse vector with events at binned timings
+%
+% Args:
+%   bt: indices of positive events
+%   nT: total number of samples
+%   v: optional
+%
+% Returns:
+%   stim: sparse vector
 
 o = ones(numel(bt), 1);
 
@@ -9,11 +19,12 @@ end
 
 assert(numel(o) == numel(v));
 
-if any(bt>nT)
+if any(bt > nT)
     badix=bt>nT;
 %     fprintf('%d events of %d are thrown out because they exceed the trial duration\n',sum(badix), numel(badix))
     bt(badix)=[];
     o(badix)=[];
     v(badix)=[];
 end
+
 stim = sparse(bt, o, v, nT, 1);

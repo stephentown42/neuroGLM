@@ -8,38 +8,54 @@ classdef neuroGLM < handle
 %   param: (any) optional - any potentially useful extra information
 %       associated with the entire experiment record (experimental
 %       parameters)
+%
+% Notes:
+%   Covariates have structure with the following fields:
+%       - label: computer-friendly name of covariate
+%       - desc: human readable name of covariate
+%       - stim: function handle used to extract data from trial structure
+%       - offset: 
+%       - cond:
+%       - basis: Basis object
+%       - edim: number of basis functions
+%       - sdim: number of channels (e.g. different sensors, speakers etc.)
 % 
-% e.g., n=neuroGLM('binSize', 1);
+% Examples:
+%   n = neuroGLM('binSize', 1);
+%
+
     properties
-        covar
-        idxmap
-        dm
-        edim
-        binfun
-        binSize
-        param
+        covar struct            % covariates
+        idxmap struct           % reverse positional indexing
+        dm struct               % design matrix
+        edim double             % parameter count
+        binfun function_handle  % function to convert time to bins
+        binSize double          % length of time each bin represents
+        param struct            % optional metdata
     end
     
     methods
-        function obj=neuroGLM(varargin)
+        % Constructor
+        function obj = neuroGLM(varargin)
             obj.covar = struct();
-            obj.idxmap = struct(); % reverse positional indexing
+            obj.idxmap = struct(); 
             
             if nargin > 0
                 obj.initExperiment(varargin{:})
             end
         end
         
-        %% initialize Experiment
         function initExperiment(obj, unitOfTime, binSize, param)
-            % Initialize the Experiment structure that holds raw data
-            % expt = initExperiment(unitOfTime, binSize, param)
-            %
-            %   unitOfTime: 'string' - 's' or 'ms' indicating a global unit of time
-            %   binSize: [1] - duration of each time bin in units of unitOfTime
-            %   param: (any) optional - any potentially useful extra information
-            %       associated with the entire experiment record (experimental
-            %       parameters)
+        % function expt = initExperiment(unitOfTime, binSize, param)
+        %
+        % Initialize the Experiment structure that holds raw data
+        %
+        %   unitOfTime: 'string' - 's' or 'ms' indicating a global unit of time
+        %   binSize: [1] - duration of each time bin in units of unitOfTime
+        %   param: (any) optional - any potentially useful extra information
+        %       associated with the entire experiment record (experimental
+        %       parameters)
+
             if nargin <=1
                 help initExperiment
                 return
@@ -51,8 +67,7 @@ classdef neuroGLM < handle
             obj.binSize  = binSize;
             obj.binfun   = str2func(['@(t) (t==0) + ceil(t/' num2str(obj.binSize) ')']);
 %             obj.binfun   = @(t) (t == 0) + ceil(t/obj.binSize);
-            
-            
+                      
             if nargin > 3
                 obj.param = param;
             else
@@ -62,9 +77,8 @@ classdef neuroGLM < handle
             obj.param.timeunit = unitOfTime;
             
         end
+
         
-        
-        %% remove constant columns
         function removeConstantCols(obj)
             % Remove columns with constant values (redandunt with the bias term)
             % dm = removeConstantCols(dm);
@@ -86,7 +100,7 @@ classdef neuroGLM < handle
             obj.dm.X = obj.dm.X(:, ~obj.dm.constCols);
         end
         
-        %% z score design matrix
+        
         function zscoreDesignMatrix(obj, colIndices)
             % z-scores each column of the design matrix. Helps when ill-conditioned.
             % dm = zscoreDesignMatrix(dm, colIndices);
@@ -121,12 +135,25 @@ classdef neuroGLM < handle
             end
             
         end
-        %% add Covariate with specified requirements
+        
+        
         function addCovariate(obj, trial, covLabel, desc, stimHandle, basisObj, offset, cond, plotOpts)
-            % add covariate helper function
-            % addCovariate(obj, trial, covLabel, desc, stimHandle, basisStruct, offset, cond, plotOpts)
-            %
-            % see also: addCovariateRaw, addCovariateSpikeTrain, addCovariateBoxcar, addCovariateTiming
+        % function addCovariate(obj, trial, covLabel, desc, stimHandle, basisObj, offset, cond, plotOpts)
+        % 
+        % Add covariate helper function
+        %
+        % Args:
+        %   trial:
+        %   covLabel: computer-friendly name of covariate
+        %   desc: human readable name of covariate
+        %   stimHandle: function that extracts data from trial structure
+        %   basisObj: Basis object
+        %   offset:
+        %   cond:
+        %   plotOpts
+        %
+        % see also: addCovariateRaw, addCovariateSpikeTrain, addCovariateBoxcar, addCovariateTiming
+            
             if nargin <= 1
                 help addCovariate
                 return
@@ -144,23 +171,40 @@ classdef neuroGLM < handle
                 return
             end
             
+            % Add covariate to object structure
             newIdx = numel(fieldnames(obj.idxmap)) + 1;
             
             if newIdx==1
-                obj.covar=struct('label', covLabel, 'desc', desc, 'stim', stimHandle, ...
-                    'offset', 0, 'cond', [], 'basis', [], 'edim', [], 'sdim', []);
+                obj.covar=struct(...
+                    'label', covLabel,...
+                    'desc', desc,...
+                    'stim', stimHandle,...
+                    'offset', 0,...
+                    'cond', [],...
+                    'basis', [],...
+                    'edim', [],....
+                    'sdim', []);
 %                 obj.covar=Covar(covLabel, desc, stimHandle);
             else
 %                 obj.covar(newIdx)=Covar(covLabel, desc, stimHandle);
-                obj.covar(newIdx)=struct('label', covLabel, 'desc', desc, 'stim', stimHandle, ...
-                    'offset', 0, 'cond', [], 'basis', [], 'edim', [], 'sdim', []);
+                obj.covar(newIdx)=struct( ...
+                    'label', covLabel,...
+                    'desc', desc,...
+                    'stim', stimHandle, ...
+                    'offset', 0,...
+                    'cond', [],... 
+                    'basis', [],...
+                    'edim', [],...
+                    'sdim', []);
             end
             
             obj.idxmap.(covLabel) = newIdx;
             
+            % Get number of datapoints in trial
             sdim = size(stimHandle(trial(1)), 2);
             obj.covar(newIdx).sdim = sdim;
             
+            % Assign Basis object to covariate
             if nargin >= 6
                 if isa(basisObj, 'Basis')
                     obj.covar(newIdx).basis = basisObj;
@@ -172,12 +216,14 @@ classdef neuroGLM < handle
                 obj.covar(newIdx).edim = sdim;
             end
             
+            % Assign offset
             if nargin >= 7
                 obj.covar(newIdx).offset = obj.binfun(offset);
             else
                 obj.covar(newIdx).offset = 0;
             end
             
+            % Assign condition (not sure what this does)
             if nargin >= 8
                 if ~isempty(cond) && ~isa(cond, 'function_handle')
                     error('Condition must be a function handle that takes trial');
@@ -187,14 +233,16 @@ classdef neuroGLM < handle
                 obj.covar(newIdx).cond = [];
             end
             
+            % Optional assignment of plot options
             if nargin >= 9
                 obj.covar(newIdx).plotOpts = plotOpts;
             end
             
+            % Get total number of parameters across the entire model
             obj.edim = sum([obj.covar(:).edim]);
         end
         
-        %% add Boxcar covariate
+        
         function addCovariateBoxcar(obj, trial, covLabel, startLabel, endLabel, valLabel, desc, varargin)
             % add boxcar covariate to model
             % addCovariateBoxcar(obj, trial, covLabel, startLabel, endLabel, valLabel, desc, varargin)
@@ -227,55 +275,78 @@ classdef neuroGLM < handle
             obj.addCovariate(trial, covLabel, desc, stimHandle, varargin{:});
         end
         
-        %% add raw continuous covariate (no basis)
+        
         function addCovariateRaw(obj, trial, covLabel, desc, varargin)
-            % Add the continuous covariate without basis function (instantaneous rel)
-            % addCovariateRaw(trial, covLabel, desc, varargin)
-            % varargin: offset, cond, plotOpts
-            %
+        % function addCovariateRaw(trial, covLabel, desc, varargin)
+        % 
+        % Add raw continuous covariate without basis function (instantaneous
+        % rel) to neuroGLM object
+        % 
+        % Args: 
+        %   offset
+        %   cond 
+        %   plotOpts
+        %
+        % Returns:
+        %   None
             
             if nargin < 3; desc = covLabel; end
             
             % assert(ischar(desc), 'Description must be a string');
             % stimHandle=str2func(sprintf('@(trial) trial.%s(1:%d:end)', covLabel, obj.binSize));
-            stimHandle=basisFactory.rawStim(covLabel);
-            obj.addCovariate(trial, covLabel, desc, stimHandle, varargin{:});
+            stimHandle = basisFactory.rawStim(covLabel);
             
+            obj.addCovariate(trial, covLabel, desc, stimHandle, varargin{:});            
         end
         
-        %% add Spike train covariate
+       
         function addCovariateSpiketrain(obj, trial, covLabel, stimLabel, desc, basisObj, varargin)
-            % add spike train as covariate
-            %
-            % varargin: offset, cond, plotOpts
-            %
-            % addCovariateSpiketrain(trial, covLabel, stimLabel, desc, basisStruct, varargin)
+        % function addCovariateSpiketrain(obj, trial, covLabel, stimLabel, desc, basisObj, varargin)
+        % 
+        % Add spike train as covariate
+        %
+        % Args: 
+        %   trial
+        %   covLabel: computer friendly name of covariate
+        %   stimLabel
+        %   desc: human readable name of covariate
+        %   basisObj: basis
+        %
+        % Optional Args
+        %   varargin{1}: stimHandle
+        %   varargin{2}: options
+        %
+        % addCovariateSpiketrain(trial, covLabel, stimLabel, desc, basisStruct, varargin)
             
             if nargin<=1
                 help addCovariateSpiketrain
                 return
             end
             
-            if nargin < 5; desc = covLabel; end
-            
+            if nargin < 5 || isempty(desc); desc = covLabel; end
             if nargin < 6
+                disp('Using basis factory settings for spike train')
                 basisObj = basisFactory.basisFactory('history', obj.binfun);
             end
             
             assert(ischar(desc), 'Description must be a string');
             
-            offset = obj.binSize; % Make sure to be causal. No instantaneous interaction allowed.
+            % Make sure to be causal. No instantaneous interaction allowed.
+            offset = obj.binSize; 
             
             if numel(varargin) > 0 && isa(varargin{1}, 'function_handle')
                 stimHandle = varargin{1};
-                options={};
-                if numel(varargin)>1
-                    options=varargin(2:end);
+                options = {};
+                if numel(varargin) > 1
+                    options = varargin(2:end);
                 end
             else
-                bf=obj.binfun;
-                fstr=func2str(bf);
-                fstr=@(label) strrep(fstr(5:end), 't', ['trial.' label]);
+                % Create custom bin function for converting timestamps into
+                % bins using values from the relevant field of the trial
+                % structure
+                bf = obj.binfun;
+                fstr = func2str(bf);
+                fstr = @(label) strrep(fstr(5:end), 't', ['trial.' label]);
                 stimHandle = str2func(['@(trial) basisFactory.deltaStim(' fstr(stimLabel) ', ' fstr('duration') ')']);
 %                 stimHandle = @(trial) basisFactory.deltaStim(bf(trial.(stimLabel)), bf(trial.duration));
 %                 stimHandle = @(trial) basisFactory.deltaStim(bf(trial.(stimLabel)+obj.binSize), obj.binfun(trial.duration));
@@ -285,28 +356,29 @@ classdef neuroGLM < handle
             obj.addCovariate(trial, covLabel, desc, stimHandle, basisObj, offset, options{:});
         end
         
-        %% add Timing Covariate
+        
         function addCovariateTiming(obj, trial, covLabel, stimLabel, desc, varargin)
-            % Add a timing covariate based on the stimLabel.
-            %
-            % varargin: offset, cond, plotOpts
-            %
-            % addCovariateTiming(trial, covLabel, stimLabel, desc, varargin)
+        % function addCovariateTiming(obj, trial, covLabel, stimLabel, desc, varargin)
+        % 
+        % Add a timing covariate based on the stimLabel.
+        %
+        % varargin: offset, cond, plotOpts
+        %
+        % addCovariateTiming(trial, covLabel, stimLabel, desc, varargin)
             
             if nargin < 4; stimLabel = covLabel; end
             if nargin < 5; desc = covLabel; end
             
-            if isempty(stimLabel)
-                stimLabel = covLabel;
-            end
+            if isempty(stimLabel), stimLabel = covLabel; end            
+            if isempty(desc), desc = stimLabel; end
             
-            if isempty(desc)
-                desc=stimLabel;
-            end
-            
-            bf=obj.binfun;
-            fstr=func2str(bf);
-            fstr=@(label) strrep(fstr(5:end), 't', ['trial.' label]);
+            % Create custom bin function for converting timestamps into
+            % bins using values from the relevant field of the trial
+            % structure
+            bf = obj.binfun;
+            fstr = func2str(bf);
+            fstr = @(label) strrep(fstr(5:end), 't', ['trial.' label]);     % e.g. '(trial.stim==0)+ceil(trial.stim/1)'
+
             stimHandle = str2func(['@(trial) basisFactory.deltaStim(' fstr(stimLabel) ', ' fstr('duration') ')']);
 %             bf=obj.binfun;
 %             stimHandle = @(trial) basisFactory.deltaStim(bf(trial.(stimLabel)), bf(trial.duration(1)));
@@ -433,19 +505,22 @@ classdef neuroGLM < handle
             % compileDesignMatrix(trial, trialIndices)
             if isempty(obj.dm) || ~isfield(obj.dm, 'X') || isempty(obj.dm.X)
                 
-            elseif ~isempty(obj.dm) && (numel(trialIndices)==numel(obj.dm.trialIndices)) && all(sum(bsxfun(@eq, trialIndices(:),obj.dm.trialIndices),2))
+            elseif ~isempty(obj.dm) &&...
+                    (numel(trialIndices)==numel(obj.dm.trialIndices)) &&...
+                    all(sum(bsxfun(@eq, trialIndices(:),obj.dm.trialIndices),2))
                 return
             end
             
             fprintf('building the design matrix\n')
-            obj.dm=struct();
+            obj.dm = struct();
             subIdxs = obj.getGroupIndicesFromDesignSpec;
             
-            trialT = obj.binfun([trial(trialIndices).duration]);
+            trialT = obj.binfun([trial(trialIndices).duration]);        % Get total number of bins
             totalT = sum(trialT);
             X      = zeros(totalT, obj.edim);
             
-            for k = 1:numel(trialIndices)
+            for k = 1 : numel(trialIndices)
+                
                 kTrial = trialIndices(k);
                 ndx = (sum(trialT(1:k))-(trialT(k)-1)):sum(trialT(1:k));
                 
@@ -650,9 +725,6 @@ classdef neuroGLM < handle
                 end
             end
         end
-        
-        %% simulate
-%         function S=simulate(obj, trial, 
         
         %% saveobj
         function S=saveobj(obj)
