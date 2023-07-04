@@ -17,6 +17,10 @@ function model = doRegressionPoisson(X, Y, dspec, ndx, dt, rho, colInds)
 %           .bilinearMode
 %           .bilinearRank
 %           .bilinearCovariate
+%   ndx: trial sample indices
+%   dt: time represented by one bin
+%   rho: regularization penalty
+%   colInds
 
 import regression.*
 
@@ -29,9 +33,9 @@ if ~isfield(dspec.model, 'regressionMode')
     dspec.model.regressionMode='ML';
 end
 
-if ~exist('ndx', 'var') || isempty(ndx),  ndx = 1:numel(Y); end
+if ~exist('ndx', 'var') || isempty(ndx),  ndx = 1 : numel(Y); end
 if ~exist('dt', 'var'), dt = 1; end
-if ~exist('rho', 'var'), rho=.2; end
+if ~exist('rho', 'var'), rho = 0.2; end
 
 if isfield(dspec.model, 'optimOpts') && isa(dspec.model.optimOpts, optim.options.Fminunc)
     optimOpts = dspec.model.optimOpts;
@@ -47,6 +51,7 @@ else
 end
 
 switch dspec.model.regressionMode
+
     case {'MLEXP', 'MLSR', 'MLE', 'ML'}
         lfun = @(w) neglogli_poiss(w, X(ndx,:), Y(ndx), nlfun, dt);
         [wmle, fval , ~, ~, ~, H] = fminunc(lfun, k0, optimOpts);
@@ -56,6 +61,7 @@ switch dspec.model.regressionMode
         model.fval=fval;
         model.dt=dt;
         model.df=numel(wmle);
+
     case {'Ridge', 'RIDGE'}
         [wRidge,rho,SDebars,~,logevid] = autoRegress_PoissonRidge(X(ndx,:),Y(ndx),nlfun,1:(size(X,2)-1),.1,[.1 1 10],k0);
         model.khat      = wRidge;
@@ -65,6 +71,7 @@ switch dspec.model.regressionMode
         model.fval=logevid;
         model.dt=1;
         model.df=numel(wRidge);
+
     case {'RidgeFixed', 'RIDGEFIXED'}
         mstruct.neglogli = @neglogli_poiss;
         mstruct.logprior = @logprior_ridge;

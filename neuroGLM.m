@@ -561,17 +561,21 @@ classdef neuroGLM < handle
         
         %% get binned spike train
         function y = getBinnedSpikeTrain(obj, trial, spLabel, trialIdx)
-            % y: a sparse column vector representing the concatenated spike trains
-            % getBinnedSpikeTrain(obj, trial, spLabel, trialIdx)
-        if nargin==1
-            help neuroGLM/getBinnedSpikeTrain
-            y=[];
-            return
-        end
+        % function y = getBinnedSpikeTrain(obj, trial, spLabel, trialIdx)
+        % 
+        % Args:
+        % 
+        % Returns:
+        %   y: a sparse column vector representing the concatenated spike trains
             
-        if nargin < 4
-            trialIdx=1:numel(trial);
-        end
+        
+            if nargin==1
+                help neuroGLM/getBinnedSpikeTrain
+                y=[];
+                return
+            end
+                
+            if nargin < 4, trialIdx = 1 : numel(trial); end
         
             sts = cell(numel(trialIdx), 1);
             endTrialIndices = [0 cumsum(obj.binfun([trial(trialIdx).duration]))];
@@ -586,7 +590,7 @@ classdef neuroGLM < handle
             sts = cell2mat(sts);
             sts(sts>nT) = [];
             y = sparse(sts, 1, 1, nT, 1);
-            
+                
         end
         
         %% get Design matrix column indices
@@ -674,9 +678,21 @@ classdef neuroGLM < handle
         end
         
         %% get covariate timing
-        function [X, trialStarts, trialEnds] = getCovariateTiming(obj, trial, trialIndices)
-            % Compile information from experiment according to given DesignSpec
-            % [X, trialStarts, trialEnds] = getCovariateTiming(trial, trialIndices)
+        function [X, trialStarts, trialEnds] = getCovariateTiming(obj, trial, trialIndices)       
+        % function [X, trialStarts, trialEnds] = getCovariateTiming(trial, trialIndices)
+        %
+        % Compile information from experiment according to given DesignSpec
+        %
+        % Args:
+        %   trial: trial structure
+        %   trialIndices: indices of breakpoints between trials
+        %
+        % Returns:
+        %   X: matrix containing covariate values at each bin
+        %   trialStarts: vector of bin indices for start of trial
+        %   trialEnds: vector of bin indices for end of trial
+
+            
             if nargin==1
                 help neuroGLM/getCovariateTiming
                 X=[];
@@ -689,39 +705,44 @@ classdef neuroGLM < handle
             totalT = sum(trialT);
             
             nCovariates = numel(obj.covar);
+            covar_chans = cat(1, obj.covar.sdim);
+            covar_indices = cumsum(covar_chans);
+            X = zeros(totalT, covar_indices(end));
+
+            trialStarts = nan(numel(trialIndices),1);
+            trialEnds = nan(numel(trialIndices),1);
             
-            X      = zeros(totalT, nCovariates);
-            trialStarts=nan(numel(trialIndices),1);
-            trialEnds=nan(numel(trialIndices),1);
-            
-            for k = 1:numel(trialIndices)
+            for k = 1 : numel(trialIndices)
+                
                 kTrial = trialIndices(k);
-                trialStarts(k)=sum(trialT(1:k))-(trialT(k)-1);
-                trialEnds(k)=sum(trialT(1:k));
+                trialStarts(k) = sum(trialT(1:k))-(trialT(k)-1);
+                trialEnds(k) = sum(trialT(1:k));
                 ndx = trialStarts(k):trialEnds(k);
                 
-                for kCov = 1:nCovariates
-                    if ~isempty(obj.covar(kCov).cond) && ~obj.covar(kCov).cond(trial(kTrial))
+                for kCov = 1 : nCovariates
+                    
+                    if ~isempty(obj.covar(kCov).cond) &&...
+                       ~obj.covar(kCov).cond(trial(kTrial))
                         continue;
                     end
                     
                     if obj.covar(kCov).offset==0
                         stim = obj.covar(kCov).stim(trial(kTrial)); % either dense or sparse
-                    else
-                        if datenum(version('-date'))>datenum('August 13, 2013')
-                            stim = circshift(obj.covar(kCov).stim(trial(kTrial)), obj.covar(kCov).offset, 1);
-                        else
-                            stim = circshift(obj.covar(kCov).stim(trial(kTrial)), obj.covar(kCov).offset);
-                        end
-                        
+                    else                       
+                        stim = circshift(obj.covar(kCov).stim(trial(kTrial)), obj.covar(kCov).offset, 1);
+                                                
                         if obj.covar(kCov).offset>0
                             stim(1:obj.covar(kCov).offset)=0;
                         else
 %                             stim(end+obj.covar(kCov).offset+1:end)=0;
                             stim(max(numel(stim)+obj.covar(kCov).offset+1, 1):end)=0; %bugS
                         end
-                    end
-                    X(ndx, kCov) = full(stim);
+                    end           
+
+                    % Address the columns for this covariate
+                    covar_kidx = covar_indices(kCov) + (0:covar_chans(kCov)-1);
+
+                    X(ndx, covar_kidx) = full(stim);
                 end
             end
         end
