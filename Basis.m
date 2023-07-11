@@ -75,22 +75,22 @@ classdef Basis < handle
             end
         end
         
-        function S=saveobj(b)
-            c=b;
+        function S = saveobj(b)
+            c = b;
 %             c=funh2struct(b, false);
-            S=struct();
+            S = struct();
             
-            S.type=c.type;
-            S.shape=c.shape;
-            S.duration=c.duration;
-            S.nBases=c.nBases;
-            S.binfun=c.binfun;
-            S.B=c.B;
-            S.edim=c.edim;
-            S.tr=c.tr;
-            S.centers=c.centers;
-            S.normalized=c.normalized;
-            S.orthogonalized=c.orthogonalized;
+            S.type = c.type;
+            S.shape = c.shape;
+            S.duration = c.duration;
+            S.nBases = c.nBases;
+            S.binfun = char(c.binfun);
+            % S.B=c.B;
+            S.edim = c.edim;
+            % S.tr=c.tr;
+            S.centers = c.centers;
+            S.normalized = c.normalized;
+            S.orthogonalized = c.orthogonalized;
         end
         
         function add_refractory_basis(obj, nDelta)
