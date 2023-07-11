@@ -362,7 +362,14 @@ classdef neuroGLM < handle
         % 
         % Add a timing covariate based on the stimLabel.
         %
-        % varargin: offset, cond, plotOpts
+        % Args: 
+        %   trial
+        %   covLabel: computer friendly name of covariate
+        %   stimLabel
+        %   desc: human readable name of covariate
+        %   basisObj: basis
+        % , cond, plotOpts
+        
         %
         % addCovariateTiming(trial, covLabel, stimLabel, desc, varargin)
             
@@ -564,6 +571,9 @@ classdef neuroGLM < handle
         % function y = getBinnedSpikeTrain(obj, trial, spLabel, trialIdx)
         % 
         % Args:
+        %   trials: trial structure
+        %   spLabel: string containing name of neuron
+        %   trialIdx: indices of trials to plot
         % 
         % Returns:
         %   y: a sparse column vector representing the concatenated spike trains
@@ -577,11 +587,14 @@ classdef neuroGLM < handle
                 
             if nargin < 4, trialIdx = 1 : numel(trial); end
         
-            sts = cell(numel(trialIdx), 1);
+            
             endTrialIndices = [0 cumsum(obj.binfun([trial(trialIdx).duration]))];
             nT = endTrialIndices(end); % how many bins total?
             
-            for k = 1:numel(trialIdx)
+            n_trials = numel(trialIdx);
+            sts = cell(n_trials, 1);
+
+            for k = 1 : n_trials
                 kTrial = trialIdx(k);
                 bst = endTrialIndices(k) + obj.binfun(trial(kTrial).(spLabel));
                 sts{k} = bst(:);
@@ -760,7 +773,7 @@ classdef neuroGLM < handle
             S.param=d.param;
         end
         
-        
+                
     end
     
     methods(Static)
